@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shakthinathan AI</title>
     <style>
-        :root {
+        /* CSS Styles remain exactly the same as in the previous 'fixed' version */
+        /* ... (paste the full CSS block from the previous answer here) ... */
+         :root {
             --background-color: #1a1a1a;
             --text-color: #e0e0e0;
             --input-bg-color: #2a2a2a;
@@ -208,7 +210,6 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--button-hover-bg);
         }
-
     </style>
 </head>
 <body>
@@ -218,7 +219,6 @@
         </header>
 
         <div id="chatbox">
-            <!-- Chat messages will be appended here -->
             <div class="message ai-message"><span class="content">Hello! I'm Shakthinathan AI. Ask me anything or type '/image [your prompt]' to generate an image.</span></div>
         </div>
 
@@ -234,47 +234,226 @@
         const inputForm = document.getElementById('input-area');
         const sendButton = document.getElementById('sendButton');
 
-        // --- API Configuration ---
-        // WARNING: Exposing API keys in client-side code is insecure!
-        // These keys can be easily stolen. Use a backend proxy for production.
-        const grokApiConfig = {
-            // Ensure this Base URL is correct and includes the schema (https://)
-            baseUrl: 'https://oa-grok.host.sdk.li/v1',
-            apiKey: 'sk-vinaynoob', // Provided key
-            model: 'grok-3-fast' // Using fast model
+        // --- Point to Proxy Endpoints ---
+        const proxyEndpoints = {
+            // These paths correspond to the filenames in netlify/functions/
+            text: '/.netlify/functions/grok-proxy',
+            image: '/.netlify/functions/image-proxy'
         };
-
-        const imageApiConfig = {
-             // Ensure this Base URL is correct and includes the schema (https://)
-            baseUrl: 'https://inferrence.mcpcore.xyz/v1',
-            apiKey: 'sk-mcpcore_e7f6YrK9p2Lm8xZq!WbT5sJn3gDv6c', // Provided key
-            model: 'gpt-image-1' // As per example
-        };
-        // --- End API Configuration ---
+        // --- API Keys are handled securely in the backend proxy functions ---
 
         let conversationHistory = [
             { role: "system", content: "You are Shakthinathan AI, a helpful assistant." }
         ];
 
+        // --- Event Listeners (input resize, submit, keydown) remain the same ---
+        userInput.addEventListener('input', () => { /* ... */ });
+        inputForm.addEventListener('submit', async (event) => { /* ... */ });
+        userInput.addEventListener('keydown', (event) => { /* ... */ });
+
+         // --- UI Functions (addMessage, addImageMessage, scrollChatToBottom) remain the same ---
+         function addMessage(text, sender, isError = false) { /* ... */ }
+         function addImageMessage(prompt, sender) { /* ... */ }
+         function scrollChatToBottom() { /* ... */ }
+
+
+        // --- Main Logic Functions (Modified) ---
+
+        async function handleTextGeneration() {
+            const aiMessageElement = addMessage("", 'ai');
+            const contentSpan = aiMessageElement.querySelector('.content');
+            aiMessageElement.classList.add('loading');
+
+            try {
+                console.log("Fetching Grok Proxy:", proxyEndpoints.text);
+                // **** CHANGE: Fetch from the Netlify Function proxy ****
+                const response = await fetch(proxyEndpoints.text, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                         // NO Authorization header here
+                    },
+                    body: JSON.stringify({
+                        messages: conversationHistory // Send history to proxy
+                    })
+                });
+
+                console.log("Proxy Response Status:", response.status);
+
+                if (!response.ok) {
+                    // Error handling remains similar, but errors might come from the proxy now
+                    let errorBody = `Proxy Error (${response.status}): ${response.statusText}`;
+                    try {
+                        const errorData = await response.json();
+                        errorBody = `Proxy Error (${response.status}): ${errorData.error || response.statusText}`;
+                        console.error("Proxy Error Body:", errorData);
+                    } catch (e) { console.error("Could not parse proxy error response body:", e); }
+                    throw new Error(errorBody);
+                }
+
+                 // --- Streaming Logic (reading from proxy response) ---
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = "";
+                let buffer = "";
+                contentSpan.textContent = '';
+                aiMessageElement.classList.remove('loading');
+
+                while (true) {
+                     const { value, done } = await reader.read();
+                     if (done) break;
+
+                     buffer += decoder.decode(value, { stream: true });
+                     const lines = buffer.split('\n');
+                     buffer = lines.pop(); // Keep incomplete line
+
+                     for (const line of lines) {
+                         // Assuming proxy passes through SSE format
+                         if (line.startsWith('data: ')) {
+                             const dataContent = line.substring(6).trim();
+                             if (dataContent === '[DONE]') break; // Exit inner loop on DONE
+                             try {
+                                 const chunk = JSON.parse(dataContent);
+                                 if (chunk.choices && chunk.choices[0]?.delta?.content) {
+                                     const contentPart = chunk.choices[0].delta.content;
+                                     fullResponse += contentPart;
+                                     contentSpan.textContent += contentPart;
+                                     scrollChatToBottom();
+                                 }
+                             } catch (parseError) {
+                                 console.warn("Could not parse stream chunk from proxy:", dataContent, parseError);
+                             }
+                         }
+                     }
+                     // Check if the outer loop should break based on DONE signal
+                      if (lines.some(line => line.startsWith('data: ') && line.substring(6).trim() === '[DONE]')) {
+                          break;
+                      }
+                }
+                 // --- End Streaming Logic ---
+
+                if (fullResponse) {
+                    conversationHistory.push({ role: "assistant", content: fullResponse });
+                } else if (contentSpan.textContent === '') {
+                     contentSpan.textContent = "[Received empty response from proxy]";
+                }
+
+            } catch (error) {
+                console.error("Text Generation Fetch Error (via Proxy):", error);
+                let displayError = `Error: ${error.message}`;
+                aiMessageElement.innerHTML = '';
+                aiMessageElement.classList.remove('loading', 'ai-message');
+                aiMessageElement.classList.add('error-message');
+                aiMessageElement.textContent = displayError;
+            } finally {
+                aiMessageElement.classList.remove('loading');
+                scrollChatToBottom();
+            }
+        }
+
+
+        async function handleImageGeneration(prompt) {
+            const { messageElement, imgElement, loadingText, errorText } = addImageMessage(prompt, 'ai');
+
+            try {
+                console.log("Fetching Image Proxy:", proxyEndpoints.image);
+                 // **** CHANGE: Fetch from the Netlify Function proxy ****
+                const response = await fetch(proxyEndpoints.image, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                         // NO Authorization header here
+                    },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        size: "1024x1024" // Send needed data to proxy
+                    })
+                });
+
+                console.log("Image Proxy Response Status:", response.status);
+
+                if (!response.ok) {
+                    let errorBody = `Proxy Error (${response.status}): ${response.statusText}`;
+                    try {
+                        const errorData = await response.json();
+                         // Adjust '.error' based on how your proxy formats errors
+                        errorBody = `Proxy Error (${response.status}): ${errorData.error || response.statusText}`;
+                        console.error("Proxy Error Body:", errorData);
+                    } catch (e) { console.error("Could not parse proxy error response body:", e); }
+                    throw new Error(errorBody);
+                }
+
+                // **** CHANGE: Expect specific JSON format from proxy ****
+                const data = await response.json();
+                console.log("Image Proxy Response Data:", data);
+
+                 // Adjust 'data.imageUrl' based on the key your proxy returns
+                if (data.imageUrl) {
+                    const imageUrl = data.imageUrl;
+                    // Image loading logic remains the same
+                    imgElement.onload = () => {
+                        loadingText.style.display = 'none';
+                        errorText.style.display = 'none';
+                        imgElement.style.display = 'block';
+                        scrollChatToBottom();
+                    };
+                    imgElement.onerror = () => {
+                        console.error("Failed to load image from URL:", imageUrl);
+                        loadingText.style.display = 'none';
+                        errorText.textContent = "Failed to load generated image.";
+                        errorText.style.display = 'block';
+                        imgElement.style.display = 'none';
+                        scrollChatToBottom();
+                    };
+                    imgElement.src = imageUrl;
+                } else {
+                    throw new Error("Proxy response did not contain a valid image URL.");
+                }
+
+            } catch (error) {
+                console.error("Image Generation Fetch Error (via Proxy):", error);
+                let displayError = `Error generating image: ${error.message}`;
+                loadingText.style.display = 'none';
+                errorText.textContent = displayError;
+                errorText.style.display = 'block';
+                imgElement.style.display = 'none';
+            }
+        }
+
+
+         window.onload = () => {
+             scrollChatToBottom();
+             userInput.focus();
+             console.log("Shakthinathan AI Initialized (using Netlify Functions Proxy).");
+         };
+
+        // --- Paste the unchanged functions here ---
+        // addMessage, addImageMessage, scrollChatToBottom, event listeners
+        // (Make sure the full code for these is present)
+
+        // Adjust textarea height dynamically
         userInput.addEventListener('input', () => {
-            userInput.style.height = 'auto';
-            userInput.style.height = `${userInput.scrollHeight}px`;
+            userInput.style.height = 'auto'; // Reset height
+            userInput.style.height = (userInput.scrollHeight) + 'px'; // Set to content height
         });
 
+        // Handle form submission
         inputForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
+            event.preventDefault(); // Prevent default page reload
             const userText = userInput.value.trim();
-            if (!userText) return;
+
+            if (!userText) return; // Don't send empty messages
 
             addMessage(userText, 'user');
-            conversationHistory.push({ role: "user", content: userText });
-            userInput.value = '';
-            userInput.style.height = 'auto';
-            sendButton.disabled = true;
+            conversationHistory.push({ role: "user", content: userText }); // Add user message to history
+            userInput.value = ''; // Clear input field
+            userInput.style.height = 'auto'; // Reset textarea height
+            sendButton.disabled = true; // Disable button while processing
             scrollChatToBottom();
 
+            // Check if it's an image generation request
             if (userText.toLowerCase().startsWith('/image ')) {
-                const prompt = userText.substring(7).trim();
+                const prompt = userText.substring(7).trim(); // Get the prompt part
                 if (prompt) {
                     await handleImageGeneration(prompt);
                 } else {
@@ -284,14 +463,15 @@
                 await handleTextGeneration();
             }
 
-            sendButton.disabled = false;
-            userInput.focus();
+            sendButton.disabled = false; // Re-enable button
+            userInput.focus(); // Keep focus on input
         });
 
+        // Handle Enter key press in textarea (send message), Shift+Enter for newline
         userInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                inputForm.requestSubmit();
+                event.preventDefault(); // Prevent newline
+                inputForm.requestSubmit(); // Trigger form submission
             }
         });
 
@@ -307,6 +487,7 @@
                 // Use a span for content to handle loading indicators better
                 const contentSpan = document.createElement('span');
                 contentSpan.classList.add('content');
+                // Sanitize text before adding? For now, just textContent
                 contentSpan.textContent = text;
                 messageElement.appendChild(contentSpan);
             }
@@ -340,6 +521,7 @@
 
             const errorText = document.createElement('p');
              errorText.classList.add('error-text');
+             errorText.style.display = 'none'; // Hide error text initially
              imageContainer.appendChild(errorText); // Add error placeholder
 
             messageElement.appendChild(imageContainer);
@@ -358,199 +540,7 @@
             }, 50);
         }
 
-        async function handleTextGeneration() {
-            // Add placeholder AI message with loading state
-            const aiMessageElement = addMessage("", 'ai');
-            const contentSpan = aiMessageElement.querySelector('.content'); // Get the content span
-            aiMessageElement.classList.add('loading');
 
-            try {
-                console.log("Fetching Grok API:", `${grokApiConfig.baseUrl}/chat/completions`);
-                const response = await fetch(`${grokApiConfig.baseUrl}/chat/completions`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${grokApiConfig.apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: grokApiConfig.model,
-                        messages: conversationHistory,
-                        stream: true
-                    })
-                });
-
-                 console.log("Grok Response Status:", response.status);
-
-                if (!response.ok) {
-                    let errorBody = `API Error (${response.status}): ${response.statusText}`;
-                    try {
-                        // Try to get more specific error from response body
-                        const errorData = await response.json();
-                         errorBody = `API Error (${response.status}): ${errorData.detail || errorData.error?.message || response.statusText}`;
-                         console.error("API Error Body:", errorData);
-                    } catch (e) {
-                         console.error("Could not parse error response body:", e);
-                    }
-                    throw new Error(errorBody);
-                }
-
-                // --- Streaming Logic ---
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let fullResponse = "";
-                let buffer = "";
-                contentSpan.textContent = ''; // Clear placeholder text
-                aiMessageElement.classList.remove('loading'); // Remove loading class, but text updates will show activity
-
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop(); // Keep incomplete line
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const dataContent = line.substring(6).trim();
-                            if (dataContent === '[DONE]') {
-                                break;
-                            }
-                            try {
-                                const chunk = JSON.parse(dataContent);
-                                if (chunk.choices && chunk.choices[0]?.delta?.content) {
-                                    const contentPart = chunk.choices[0].delta.content;
-                                    fullResponse += contentPart;
-                                    contentSpan.textContent += contentPart; // Append to content span
-                                    scrollChatToBottom();
-                                }
-                            } catch (parseError) {
-                                console.warn("Could not parse stream chunk:", dataContent, parseError);
-                            }
-                        }
-                    }
-                     if (line.startsWith('data: ') && line.substring(6).trim() === '[DONE]') break; // Exit outer loop if DONE received
-                }
-                // --- End Streaming Logic ---
-
-                if (fullResponse) {
-                    conversationHistory.push({ role: "assistant", content: fullResponse });
-                } else if (contentSpan.textContent === '') {
-                    // Handle cases where the stream might end without content (though unlikely with LLMs)
-                     contentSpan.textContent = "[Received empty response]";
-                }
-
-            } catch (error) {
-                console.error("Text Generation Fetch Error:", error);
-                 // Check if the error message indicates a network issue (often CORS)
-                 let displayError = `Error: ${error.message}`;
-                 if (error instanceof TypeError && error.message.includes("fetch")) {
-                     displayError += "\n(This might be a CORS issue or network problem. Check the browser console for details.)";
-                     console.error("Detailed Fetch Error:", error); // Log the full error object
-                 }
-                 // Update the placeholder element with a proper error message
-                 aiMessageElement.innerHTML = ''; // Clear existing content/spinner
-                 aiMessageElement.classList.remove('loading', 'ai-message');
-                 aiMessageElement.classList.add('error-message');
-                 aiMessageElement.textContent = displayError;
-                 // Don't add error placeholder to history
-            } finally {
-                aiMessageElement.classList.remove('loading'); // Ensure loading class is removed
-                 scrollChatToBottom(); // Scroll after potential error message resizing
-            }
-        }
-
-
-        async function handleImageGeneration(prompt) {
-             // Add placeholder message with image loading indicator
-            const { messageElement, imgElement, loadingText, errorText } = addImageMessage(prompt, 'ai');
-
-            try {
-                 console.log("Fetching Image API:", `${imageApiConfig.baseUrl}/images/generations`);
-                const response = await fetch(`${imageApiConfig.baseUrl}/images/generations`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${imageApiConfig.apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: imageApiConfig.model,
-                        prompt: prompt,
-                        size: "1024x1024"
-                        // n: 1
-                    })
-                });
-
-                console.log("Image Response Status:", response.status);
-
-                if (!response.ok) {
-                    let errorBody = `API Error (${response.status}): ${response.statusText}`;
-                    try {
-                        const errorData = await response.json();
-                        errorBody = `API Error (${response.status}): ${errorData.error?.message || response.statusText}`;
-                        console.error("API Error Body:", errorData);
-                    } catch (e) {
-                         console.error("Could not parse error response body:", e);
-                     }
-                    throw new Error(errorBody);
-                }
-
-                const data = await response.json();
-                 console.log("Image API Response Data:", data);
-
-
-                if (data.data && data.data.length > 0 && data.data[0].url) {
-                    const imageUrl = data.data[0].url;
-
-                    // Preload image and display when ready
-                    imgElement.onload = () => {
-                        loadingText.style.display = 'none'; // Hide loading text
-                         errorText.style.display = 'none'; // Hide error text area
-                        imgElement.style.display = 'block'; // Show image
-                        scrollChatToBottom();
-                    };
-                    imgElement.onerror = () => {
-                        console.error("Failed to load image from URL:", imageUrl);
-                         loadingText.style.display = 'none'; // Hide loading text
-                         errorText.textContent = "Failed to load generated image.";
-                         errorText.style.display = 'block'; // Show error text
-                        imgElement.style.display = 'none'; // Keep image hidden
-                        scrollChatToBottom();
-                    };
-                    imgElement.src = imageUrl; // Start loading the image
-
-                    // Optional: Add image generation success to history
-                    // conversationHistory.push({ role: "assistant", content: `Generated image for: "${prompt}"` });
-
-                } else {
-                    throw new Error("API response did not contain a valid image URL.");
-                }
-
-            } catch (error) {
-                console.error("Image Generation Fetch Error:", error);
-                 let displayError = `Error generating image: ${error.message}`;
-                 if (error instanceof TypeError && error.message.includes("fetch")) {
-                     displayError += "\n(This might be a CORS issue or network problem. Check the browser console.)";
-                      console.error("Detailed Fetch Error:", error); // Log the full error object
-                 }
-                 loadingText.style.display = 'none'; // Hide loading text
-                 errorText.textContent = displayError;
-                 errorText.style.display = 'block'; // Show error text
-                 imgElement.style.display = 'none'; // Ensure image element is hidden
-                 // Optionally restyle the message bubble itself as an error
-                 messageElement.classList.remove('ai-message');
-                 messageElement.classList.add('error-message'); // You might want a less intrusive error style here though
-                 messageElement.style.backgroundColor = 'transparent'; // Avoid double background if using error-message class fully
-            }
-            // No finally block needed here as UI updates happen via img onload/onerror
-        }
-
-         window.onload = () => {
-             scrollChatToBottom();
-             userInput.focus();
-             console.log("Shakthinathan AI Initialized. Waiting for input.");
-             console.log("NOTE: If API calls fail with 'Failed to fetch', check the Console for CORS errors. These APIs might not be directly callable from a browser.");
-         }
     </script>
 </body>
 </html>
