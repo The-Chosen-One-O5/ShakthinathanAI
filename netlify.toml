@@ -1,0 +1,21 @@
+[build]
+  # Directory containing the serverless functions
+  functions = "netlify/functions"
+  # Directory containing the frontend files (index.html)
+  publish = "."
+
+[functions]
+  # Optional: Set Node.js version for functions if needed
+  # node_bundler = "esbuild"
+  # included_files = ["path/to/other/files/needed/by/functions/**"] # If functions need extra files
+
+# Optional: Redirects if you want cleaner URLs, but direct function paths work
+# [[redirects]]
+#   from = "/api/text"
+#   to = "/.netlify/functions/grok-proxy"
+#   status = 200
+#
+# [[redirects]]
+#   from = "/api/image"
+#   to = "/.netlify/functions/image-proxy"
+#   status = 200
