@@ -1,546 +1,109 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shakthinathan AI</title>
+    <title>Image Generator</title>
     <style>
-        /* CSS Styles remain exactly the same as in the previous 'fixed' version */
-        /* ... (paste the full CSS block from the previous answer here) ... */
-         :root {
-            --background-color: #1a1a1a;
-            --text-color: #e0e0e0;
-            --input-bg-color: #2a2a2a;
-            --button-bg-color: #4a4a4a;
-            --button-hover-bg: #6a6a6a;
-            --user-message-bg: #005090; /* Dark blue */
-            --ai-message-bg: #333333;
-            --border-color: #444;
-            --accent-color: #1e90ff; /* Dodger blue */
-            --error-color: #ff4d4d;
-            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        html, body {
-            height: 100%;
-            font-family: var(--font-family);
-            background-color: var(--background-color);
-            color: var(--text-color);
-            line-height: 1.6;
-        }
-
-        #app-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            max-width: 800px; /* Limit width for better readability */
-            margin: 0 auto; /* Center the container */
-            border-left: 1px solid var(--border-color);
-            border-right: 1px solid var(--border-color);
-            background-color: #202020; /* Slightly lighter background for the app area */
-        }
-
-        header {
-            background-color: #252525;
-            padding: 15px 20px;
-            border-bottom: 1px solid var(--border-color);
-            text-align: center;
-        }
-
-        header h1 {
-            color: var(--accent-color);
-            font-size: 1.8em;
-            font-weight: 600;
-        }
-
-        #chatbox {
-            flex-grow: 1;
-            overflow-y: auto;
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
             padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px; /* Spacing between messages */
         }
-
-        .message {
-            padding: 12px 18px;
-            border-radius: 18px;
-            max-width: 85%; /* Max width of message bubble */
-            word-wrap: break-word; /* Prevent long words from overflowing */
-            position: relative; /* For potential future additions like timestamps */
+        .form-group {
+            margin-bottom: 15px;
         }
-         /* Use paragraphs inside messages for better structure */
-        .message p {
-           margin: 0; /* Remove default paragraph margin */
-           padding: 0;
-        }
-        .message p:not(:last-child) {
-             margin-bottom: 8px; /* Add space between paragraphs if needed */
-        }
-
-
-        .user-message {
-            background-color: var(--user-message-bg);
-            color: #fff;
-            align-self: flex-end; /* Align user messages to the right */
-            border-bottom-right-radius: 5px; /* Slight style variation */
-        }
-
-        .ai-message {
-            background-color: var(--ai-message-bg);
-            align-self: flex-start; /* Align AI messages to the left */
-            border-bottom-left-radius: 5px; /* Slight style variation */
-        }
-
-        .ai-message.loading .content::after { /* Target content span for cursor */
-            content: '▋'; /* Blinking cursor simulation */
-            display: inline-block;
-            animation: blink 1s infinite step-start;
-            margin-left: 5px;
+        label {
+            display: block;
+            margin-bottom: 5px;
             font-weight: bold;
         }
-         /* Add a span to hold the content, so loading state doesn't overwrite structure */
-        .message .content {
-            display: inline; /* Or block if needed */
+        input, select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
         }
-
-        @keyframes blink {
-            50% { opacity: 0; }
-        }
-
-        .error-message {
-            background-color: var(--error-color);
+        button {
+            background-color: #4CAF50;
             color: white;
-            font-weight: bold;
-            align-self: center; /* Center error messages */
-            max-width: 90%;
-            text-align: center;
-            border-radius: 5px; /* Simpler radius for errors */
-        }
-
-        #input-area {
-            display: flex;
-            padding: 15px 20px;
-            border-top: 1px solid var(--border-color);
-            background-color: #252525; /* Match header background */
-            gap: 10px; /* Space between textarea and button */
-        }
-
-        #userInput {
-            flex-grow: 1;
-            padding: 12px 15px;
-            border: 1px solid var(--border-color);
-            border-radius: 20px; /* Rounded input field */
-            background-color: var(--input-bg-color);
-            color: var(--text-color);
-            font-family: inherit;
-            font-size: 1em;
-            resize: none; /* Prevent manual resizing */
-            min-height: 48px; /* Ensure minimum height */
-            max-height: 150px; /* Limit expansion */
-            overflow-y: auto;
-            line-height: 1.4; /* Adjust line height for textarea */
-        }
-
-        #userInput:focus {
-            outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 5px rgba(30, 144, 255, 0.5); /* Subtle glow on focus */
-        }
-
-        #sendButton {
-            padding: 0 20px; /* Padding for button text */
+            padding: 10px 15px;
             border: none;
-            border-radius: 20px; /* Match input field rounding */
-            background-color: var(--button-bg-color);
-            color: var(--text-color);
-            font-size: 1em;
             cursor: pointer;
-            transition: background-color 0.2s ease;
-            min-height: 48px; /* Match input field height */
-            align-self: flex-end; /* Align with bottom of textarea if it grows */
+            font-size: 16px;
         }
-
-        #sendButton:hover:not(:disabled) {
-            background-color: var(--button-hover-bg);
+        button:hover {
+            background-color: #45a049;
         }
-        #sendButton:disabled {
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        .generated-image-container {
-            margin-top: 10px;
-        }
-        .generated-image-container .loading-text {
-            font-style: italic;
-            font-size: 0.9em;
-            color: #aaa; /* Lighter text for loading */
-        }
-        .generated-image {
-            max-width: 100%; /* Ensure image fits within message bubble */
-            max-height: 400px; /* Limit image height */
-            border-radius: 10px; /* Rounded corners for images */
-            display: none; /* Hide initially */
-             margin-top: 5px;
-        }
-        .generated-image-container .error-text {
-            color: var(--error-color);
-            font-size: 0.9em;
-        }
-
-
-        /* Scrollbar styling (optional, for better aesthetics) */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--input-bg-color);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--button-bg-color);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--button-hover-bg);
+        #generatedImage {
+            margin-top: 20px;
+            max-width: 100%;
         }
     </style>
 </head>
 <body>
-    <div id="app-container">
-        <header>
-            <h1>Shakthinathan AI</h1>
-        </header>
-
-        <div id="chatbox">
-            <div class="message ai-message"><span class="content">Hello! I'm Shakthinathan AI. Ask me anything or type '/image [your prompt]' to generate an image.</span></div>
-        </div>
-
-        <form id="input-area">
-            <textarea id="userInput" placeholder="Type your message or /image prompt..." rows="1"></textarea>
-            <button id="sendButton" type="submit">Send</button>
-        </form>
+    <h1>Image Generator</h1>
+    
+    <div class="form-group">
+        <label for="prompt">Prompt:</label>
+        <input type="text" id="prompt" value="A beautiful landscape" placeholder="Describe the image you want to generate">
     </div>
-
+    
+    <div class="form-group">
+        <label for="width">Width:</label>
+        <input type="number" id="width" value="1024" min="256" max="2048">
+    </div>
+    
+    <div class="form-group">
+        <label for="height">Height:</label>
+        <input type="number" id="height" value="1024" min="256" max="2048">
+    </div>
+    
+    <div class="form-group">
+        <label for="model">Model:</label>
+        <select id="model">
+            <option value="flux">Flux</option>
+            <option value="stable-diffusion">Stable Diffusion</option>
+            <option value="dall-e">DALL-E</option>
+        </select>
+    </div>
+    
+    <button onclick="generateImage()">Generate Image</button>
+    <button onclick="randomizeSeed()">Random Seed</button>
+    
+    <div id="imageContainer">
+        <img id="generatedImage" src="" alt="Generated image will appear here">
+    </div>
+    
     <script>
-        const chatbox = document.getElementById('chatbox');
-        const userInput = document.getElementById('userInput');
-        const inputForm = document.getElementById('input-area');
-        const sendButton = document.getElementById('sendButton');
-
-        // --- Point to Proxy Endpoints ---
-        const proxyEndpoints = {
-            // These paths correspond to the filenames in netlify/functions/
-            text: '/.netlify/functions/grok-proxy',
-            image: '/.netlify/functions/image-proxy'
-        };
-        // --- API Keys are handled securely in the backend proxy functions ---
-
-        let conversationHistory = [
-            { role: "system", content: "You are Shakthinathan AI, a helpful assistant." }
-        ];
-
-        // --- Event Listeners (input resize, submit, keydown) remain the same ---
-        userInput.addEventListener('input', () => { /* ... */ });
-        inputForm.addEventListener('submit', async (event) => { /* ... */ });
-        userInput.addEventListener('keydown', (event) => { /* ... */ });
-
-         // --- UI Functions (addMessage, addImageMessage, scrollChatToBottom) remain the same ---
-         function addMessage(text, sender, isError = false) { /* ... */ }
-         function addImageMessage(prompt, sender) { /* ... */ }
-         function scrollChatToBottom() { /* ... */ }
-
-
-        // --- Main Logic Functions (Modified) ---
-
-        async function handleTextGeneration() {
-            const aiMessageElement = addMessage("", 'ai');
-            const contentSpan = aiMessageElement.querySelector('.content');
-            aiMessageElement.classList.add('loading');
-
-            try {
-                console.log("Fetching Grok Proxy:", proxyEndpoints.text);
-                // **** CHANGE: Fetch from the Netlify Function proxy ****
-                const response = await fetch(proxyEndpoints.text, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                         // NO Authorization header here
-                    },
-                    body: JSON.stringify({
-                        messages: conversationHistory // Send history to proxy
-                    })
-                });
-
-                console.log("Proxy Response Status:", response.status);
-
-                if (!response.ok) {
-                    // Error handling remains similar, but errors might come from the proxy now
-                    let errorBody = `Proxy Error (${response.status}): ${response.statusText}`;
-                    try {
-                        const errorData = await response.json();
-                        errorBody = `Proxy Error (${response.status}): ${errorData.error || response.statusText}`;
-                        console.error("Proxy Error Body:", errorData);
-                    } catch (e) { console.error("Could not parse proxy error response body:", e); }
-                    throw new Error(errorBody);
-                }
-
-                 // --- Streaming Logic (reading from proxy response) ---
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let fullResponse = "";
-                let buffer = "";
-                contentSpan.textContent = '';
-                aiMessageElement.classList.remove('loading');
-
-                while (true) {
-                     const { value, done } = await reader.read();
-                     if (done) break;
-
-                     buffer += decoder.decode(value, { stream: true });
-                     const lines = buffer.split('\n');
-                     buffer = lines.pop(); // Keep incomplete line
-
-                     for (const line of lines) {
-                         // Assuming proxy passes through SSE format
-                         if (line.startsWith('data: ')) {
-                             const dataContent = line.substring(6).trim();
-                             if (dataContent === '[DONE]') break; // Exit inner loop on DONE
-                             try {
-                                 const chunk = JSON.parse(dataContent);
-                                 if (chunk.choices && chunk.choices[0]?.delta?.content) {
-                                     const contentPart = chunk.choices[0].delta.content;
-                                     fullResponse += contentPart;
-                                     contentSpan.textContent += contentPart;
-                                     scrollChatToBottom();
-                                 }
-                             } catch (parseError) {
-                                 console.warn("Could not parse stream chunk from proxy:", dataContent, parseError);
-                             }
-                         }
-                     }
-                     // Check if the outer loop should break based on DONE signal
-                      if (lines.some(line => line.startsWith('data: ') && line.substring(6).trim() === '[DONE]')) {
-                          break;
-                      }
-                }
-                 // --- End Streaming Logic ---
-
-                if (fullResponse) {
-                    conversationHistory.push({ role: "assistant", content: fullResponse });
-                } else if (contentSpan.textContent === '') {
-                     contentSpan.textContent = "[Received empty response from proxy]";
-                }
-
-            } catch (error) {
-                console.error("Text Generation Fetch Error (via Proxy):", error);
-                let displayError = `Error: ${error.message}`;
-                aiMessageElement.innerHTML = '';
-                aiMessageElement.classList.remove('loading', 'ai-message');
-                aiMessageElement.classList.add('error-message');
-                aiMessageElement.textContent = displayError;
-            } finally {
-                aiMessageElement.classList.remove('loading');
-                scrollChatToBottom();
-            }
+        let currentSeed = Math.floor(Math.random() * 10000);
+        
+        function generateImage() {
+            const prompt = document.getElementById('prompt').value;
+            const width = document.getElementById('width').value;
+            const height = document.getElementById('height').value;
+            const model = document.getElementById('model').value;
+            
+            // Encode the prompt for URL
+            const encodedPrompt = encodeURIComponent(prompt);
+            
+            // Generate the image URL
+            const imageUrl = 
+https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${currentSeed}&model=${model};
+            
+            // Display the image
+            document.getElementById('generatedImage').src = imageUrl;
+            document.getElementById('generatedImage').alt = prompt;
+            
+            // Increment seed for next generation
+            currentSeed++;
         }
-
-
-        async function handleImageGeneration(prompt) {
-            const { messageElement, imgElement, loadingText, errorText } = addImageMessage(prompt, 'ai');
-
-            try {
-                console.log("Fetching Image Proxy:", proxyEndpoints.image);
-                 // **** CHANGE: Fetch from the Netlify Function proxy ****
-                const response = await fetch(proxyEndpoints.image, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                         // NO Authorization header here
-                    },
-                    body: JSON.stringify({
-                        prompt: prompt,
-                        size: "1024x1024" // Send needed data to proxy
-                    })
-                });
-
-                console.log("Image Proxy Response Status:", response.status);
-
-                if (!response.ok) {
-                    let errorBody = `Proxy Error (${response.status}): ${response.statusText}`;
-                    try {
-                        const errorData = await response.json();
-                         // Adjust '.error' based on how your proxy formats errors
-                        errorBody = `Proxy Error (${response.status}): ${errorData.error || response.statusText}`;
-                        console.error("Proxy Error Body:", errorData);
-                    } catch (e) { console.error("Could not parse proxy error response body:", e); }
-                    throw new Error(errorBody);
-                }
-
-                // **** CHANGE: Expect specific JSON format from proxy ****
-                const data = await response.json();
-                console.log("Image Proxy Response Data:", data);
-
-                 // Adjust 'data.imageUrl' based on the key your proxy returns
-                if (data.imageUrl) {
-                    const imageUrl = data.imageUrl;
-                    // Image loading logic remains the same
-                    imgElement.onload = () => {
-                        loadingText.style.display = 'none';
-                        errorText.style.display = 'none';
-                        imgElement.style.display = 'block';
-                        scrollChatToBottom();
-                    };
-                    imgElement.onerror = () => {
-                        console.error("Failed to load image from URL:", imageUrl);
-                        loadingText.style.display = 'none';
-                        errorText.textContent = "Failed to load generated image.";
-                        errorText.style.display = 'block';
-                        imgElement.style.display = 'none';
-                        scrollChatToBottom();
-                    };
-                    imgElement.src = imageUrl;
-                } else {
-                    throw new Error("Proxy response did not contain a valid image URL.");
-                }
-
-            } catch (error) {
-                console.error("Image Generation Fetch Error (via Proxy):", error);
-                let displayError = `Error generating image: ${error.message}`;
-                loadingText.style.display = 'none';
-                errorText.textContent = displayError;
-                errorText.style.display = 'block';
-                imgElement.style.display = 'none';
-            }
+        
+        function randomizeSeed() {
+            currentSeed = Math.floor(Math.random() * 10000);
+            generateImage();
         }
-
-
-         window.onload = () => {
-             scrollChatToBottom();
-             userInput.focus();
-             console.log("Shakthinathan AI Initialized (using Netlify Functions Proxy).");
-         };
-
-        // --- Paste the unchanged functions here ---
-        // addMessage, addImageMessage, scrollChatToBottom, event listeners
-        // (Make sure the full code for these is present)
-
-        // Adjust textarea height dynamically
-        userInput.addEventListener('input', () => {
-            userInput.style.height = 'auto'; // Reset height
-            userInput.style.height = (userInput.scrollHeight) + 'px'; // Set to content height
-        });
-
-        // Handle form submission
-        inputForm.addEventListener('submit', async (event) => {
-            event.preventDefault(); // Prevent default page reload
-            const userText = userInput.value.trim();
-
-            if (!userText) return; // Don't send empty messages
-
-            addMessage(userText, 'user');
-            conversationHistory.push({ role: "user", content: userText }); // Add user message to history
-            userInput.value = ''; // Clear input field
-            userInput.style.height = 'auto'; // Reset textarea height
-            sendButton.disabled = true; // Disable button while processing
-            scrollChatToBottom();
-
-            // Check if it's an image generation request
-            if (userText.toLowerCase().startsWith('/image ')) {
-                const prompt = userText.substring(7).trim(); // Get the prompt part
-                if (prompt) {
-                    await handleImageGeneration(prompt);
-                } else {
-                    addMessage("Please provide a prompt after /image.", 'ai', true); // Error specific message
-                }
-            } else {
-                await handleTextGeneration();
-            }
-
-            sendButton.disabled = false; // Re-enable button
-            userInput.focus(); // Keep focus on input
-        });
-
-        // Handle Enter key press in textarea (send message), Shift+Enter for newline
-        userInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault(); // Prevent newline
-                inputForm.requestSubmit(); // Trigger form submission
-            }
-        });
-
-        function addMessage(text, sender, isError = false) {
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('message');
-
-            if (isError) {
-                messageElement.classList.add('error-message');
-                messageElement.textContent = text; // Direct text for simple errors
-            } else {
-                messageElement.classList.add(`${sender}-message`);
-                // Use a span for content to handle loading indicators better
-                const contentSpan = document.createElement('span');
-                contentSpan.classList.add('content');
-                // Sanitize text before adding? For now, just textContent
-                contentSpan.textContent = text;
-                messageElement.appendChild(contentSpan);
-            }
-
-            chatbox.appendChild(messageElement);
-            scrollChatToBottom();
-            return messageElement; // Return element for updates (streaming, image loading)
-        }
-
-
-        function addImageMessage(prompt, sender) {
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('message', `${sender}-message`);
-
-            const promptText = document.createElement('p');
-            promptText.textContent = `Generating image for: "${prompt}"`;
-            messageElement.appendChild(promptText);
-
-            const imageContainer = document.createElement('div');
-            imageContainer.classList.add('generated-image-container');
-
-            const loadingText = document.createElement('p');
-            loadingText.classList.add('loading-text');
-            loadingText.textContent = 'Generating...';
-            imageContainer.appendChild(loadingText);
-
-            const imgElement = document.createElement('img');
-            imgElement.classList.add('generated-image');
-            imgElement.alt = prompt; // Set alt text
-            imageContainer.appendChild(imgElement);
-
-            const errorText = document.createElement('p');
-             errorText.classList.add('error-text');
-             errorText.style.display = 'none'; // Hide error text initially
-             imageContainer.appendChild(errorText); // Add error placeholder
-
-            messageElement.appendChild(imageContainer);
-            chatbox.appendChild(messageElement);
-            scrollChatToBottom();
-
-            // Return elements needed for updates
-            return { messageElement, imgElement, loadingText, errorText };
-        }
-
-
-        function scrollChatToBottom() {
-            // Added a small delay to allow the DOM to update heights before scrolling
-            setTimeout(() => {
-                chatbox.scrollTop = chatbox.scrollHeight;
-            }, 50);
-        }
-
-
+        
+        // Generate an initial image when the page loads
+        window.onload = generateImage;
     </script>
 </body>
 </html>
